@@ -7,6 +7,15 @@ M._active = false
 
 local e = vim.fn.fnameescape
 
+local get_filtered_bufs = function()
+  return vim.tbl_filter(function(b)
+    if vim.bo[b].buftype ~= "" or vim.bo[b].filetype == "gitcommit" or vim.bo[b].filetype == "gitrebase" then
+      return false
+    end
+    return vim.api.nvim_buf_get_name(b) ~= ""
+  end, vim.api.nvim_list_bufs())
+end
+
 ---@param opts? {branch?: boolean}
 function M.current(opts)
   opts = opts or {}
@@ -44,12 +53,8 @@ function M.start()
       M.fire("SavePre")
 
       if Config.options.need > 0 then
-        local bufs = vim.tbl_filter(function(b)
-          if vim.bo[b].buftype ~= "" or vim.bo[b].filetype == "gitcommit" or vim.bo[b].filetype == "gitrebase" then
-            return false
-          end
-          return vim.api.nvim_buf_get_name(b) ~= ""
-        end, vim.api.nvim_list_bufs())
+        local bufs = get_filtered_bufs()
+
         if #bufs < Config.options.need then
           return
         end
@@ -128,6 +133,16 @@ function M.select()
     end,
   }, function(item)
     if item then
+      local bufs = get_filtered_bufs()
+
+      if #bufs >= Config.options.need then
+        M.save()
+      end
+
+      if #bufs >= 1 then
+        vim.cmd("%bd!")
+      end
+
       vim.fn.chdir(item.dir)
       M.load()
     end
